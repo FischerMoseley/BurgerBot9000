@@ -6,7 +6,6 @@ import functools
 import pickle
 from tqdm import tqdm
 
-
 # Download the dataset
 songs = pickle.load( open( "corpus.pkl", "rb" ) )
 
@@ -69,6 +68,19 @@ def build_model(vocab_size, embedding_dim, rnn_units, batch_size):
   ])
   return model
 
+# Build a simple model with default hyperparameters. You will get the chance to change these later.
+model = build_model(len(vocab), embedding_dim=256, rnn_units=1024, batch_size=32)
+model.summary()
+
+def compute_loss(labels, logits):
+  return tf.keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
+
+x, y = get_batch(vectorized_songs, seq_length=100, batch_size=32)
+pred = model(x)
+
+#Compute the loss using the true next characters from the example batch and the predictions from the untrained model several cells above
+example_batch_loss = compute_loss(y, pred)
+
 ### Hyperparameter setting and optimization ###
 
 # Optimization parameters:
@@ -85,6 +97,47 @@ rnn_units = 1024  # Experiment between 1 and 2048
 # Checkpoint location: 
 checkpoint_dir = './training_checkpoints'
 checkpoint_prefix = os.path.join(checkpoint_dir, "my_ckpt")
+### Define optimizer and training operation ###
+
+#instantiate a new model for training using the `build_model` function and the hyperparameters created above.
+model = build_model(vocab_size, embedding_dim, rnn_units, batch_size)
+
+#instantiate the optimizer
+optimizer = tf.keras.optimizers.Adam(learning_rate)
+
+def train_step(x, y): 
+  with tf.GradientTape() as tape:
+    y_hat = model(x)
+    loss = compute_loss(y, y_hat)
+
+  # Now, compute the gradients 
+  grads = tape.gradient(loss, model.trainable_variables)
+  
+  # Apply the gradients to the optimizer so it can update the model accordingly
+  optimizer.apply_gradients(zip(grads, model.trainable_variables))
+  return loss
+
+# Begin training!
+history = []
+if hasattr(tqdm, '_instances'): tqdm._instances.clear() # clear if it exists
+
+for iter in tqdm(range(num_training_iterations)):
+
+  # Grab a batch and propagate it through the network
+  x_batch, y_batch = get_batch(vectorized_songs, seq_length, batch_size)
+  loss = train_step(x_batch, y_batch)
+
+  # Update the progress bar
+  history.append(loss.numpy().mean())
+
+  # Update the model with the changed weights!
+  if iter % 100 == 0:     
+    model.save_weights(checkpoint_prefix)
+    
+# Save the trained model and the weights
+model.save_weights(checkpoint_prefix)
+print("Final Loss:", history[-1])
+
 
 model = build_model(vocab_size, embedding_dim, rnn_units, batch_size=1)
 
@@ -108,22 +161,25 @@ def generate_text(model, start_string, generation_length=1000):
 
   # Here batch size == 1
   model.reset_states()
+  tqdm._instances.clear()
 
-  for _ in tqdm(range(generation_length)):
+  for i in tqdm(range(generation_length)):
       predictions = model(input_eval)
       
       # Remove the batch dimension
       predictions = tf.squeeze(predictions, 0)
-
+      
+      '''TODO: use a multinomial distribution to sample'''
       predicted_id = tf.random.categorical(predictions, num_samples=1)[-1,0].numpy()
 
       # Pass the prediction along with the previous hidden state as the next inputs to the model
       input_eval = tf.expand_dims([predicted_id], 0)
       
+      '''TODO: add the predicted character to the generated text!'''
       # Hint: consider what format the prediction is in vs. the output
       text_generated.append(idx2char[predicted_id])
     
   return (start_string + ''.join(text_generated))
 
-generated_text = generate_text(model, start_string="c", generation_length=1000)
+generated_text = generate_text(model, start_string="b", generation_length=1000)
 print(generated_text)
