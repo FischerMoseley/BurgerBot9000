@@ -7,7 +7,7 @@ import pickle
 from tqdm import tqdm
 
 # Download the dataset
-songs = pickle.load( open( "corpus.pkl", "rb" ) )
+songs = pickle.load( open( "training_data/positive.pkl", "rb" ) )
 
 # Join our list of song strings into a single string containing all songs
 songs_joined = "\n\n".join(songs) 
@@ -84,7 +84,7 @@ example_batch_loss = compute_loss(y, pred)
 ### Hyperparameter setting and optimization ###
 
 # Optimization parameters:
-num_training_iterations = 4000  # Increase this to train longer
+num_training_iterations = 1500  # Increase this to train longer
 batch_size = 75  # Experiment between 1 and 64
 seq_length = 100  # Experiment between 50 and 500
 learning_rate = 1e-3  # Experiment between 1e-5 and 1e-1

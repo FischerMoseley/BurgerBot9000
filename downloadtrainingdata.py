@@ -17,19 +17,25 @@ def configure_API(api_key_path):
     return api
 
 def clean_tweet(tweet):
+    cleaned_tweet = tweet.full_text
+    if("RT @" in cleaned_tweet): return None
+
     # strip emoji and make the tweet ASCII characters only
-    cleaned_tweet = tweet.full_text.split('https://')[0].strip().encode('ascii', errors = 'ignore').decode('utf-8')
+    cleaned_tweet = cleaned_tweet.split('https://')[0].strip().encode('ascii', errors = 'ignore').decode('utf-8')
 
     # replace unruly characters will their ASCII equivalents
     cleaned_tweet = cleaned_tweet.replace('\n', ' ')
     cleaned_tweet = cleaned_tweet.replace('&amp', '&')
     cleaned_tweet = cleaned_tweet.replace('&gt', '>')
     cleaned_tweet = cleaned_tweet.replace('&lt', '<')
+    cleaned_tweet = cleaned_tweet.replace('<;3', '')
+    cleaned_tweet = ' '.join([substring for substring in cleaned_tweet.split() if '@' not in substring])
+
 
     # make sure that the tweet isn't a retweet and is still burger-related after all of our modifications
     # return the cleaned tweet if so
     if ("RT @" not in cleaned_tweet) and ('burger' in cleaned_tweet.lower()):
-        return cleaned_tweet
+        return cleaned_tweet.lower()
 
 def pull_tweets(api, searchQuery, maxTweets, tweetsPerQry, fName = 'training_data/all_tweets.txt'):
     # If results from a specific ID onwards are reqd, set since_id to that ID.
@@ -120,7 +126,7 @@ def save_tweets(tweet_dict):
         neg.write("\n".join(negative_tweet_list))
 
 searchQuery = 'burger'  # this is what we're searching for
-maxTweets = 50000 # Some arbitrary large number
+maxTweets = 100 # Some arbitrary large number
 tweetsPerQry = 100  # this is the max the API permits
 
 api = configure_API(API_KEY_PATH)
